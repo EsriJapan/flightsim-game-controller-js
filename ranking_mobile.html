@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <link rel="shortcut icon" href="//esri.github.io/bootstrap-map-js/doc/images/favicon.ico">
+
+  <link rel="stylesheet" href="//js.arcgis.com/3.13/esri/css/esri.css">
+
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.7.0/bootstrap-table.min.css">
+
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css" />
+  <style>
+      html, body, #mapDiv {
+        height: 100%;
+        margin: 0px;
+        padding: 0px;
+        width: 100%;
+      }
+      #cover {
+        position: absolute;
+        height: 100%;
+        margin: 0px;
+        padding: 0px;
+        width: 100%;
+        z-index: 999;
+        background-color: #000;
+        opacity: 0.7;
+      }
+      #bs {
+        z-index: 9999;
+        position: absolute;
+        top: 0;
+        left: 0;
+        padding-top: 50px;
+        padding-bottom: 50px;
+        height: 100%;
+        width: 100%;
+
+        color: #fff;
+        font-family: "Meiryo";
+      }
+      .smalltxt {
+        font-size: 8pt;
+      }
+      .table-hover>tbody>tr:hover>td, .table-hover>tbody>tr:hover>th {
+          background-color: rgba(200, 200, 200, 0.7);
+      }
+  </style>
+
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+    <script src="http://esri.github.io/bootstrap-map-js/bootstrap_v3/docs-assets/js/html5shiv.js"></script>
+    <script src="http://esri.github.io/bootstrap-map-js/bootstrap_v3/docs-assets/js/respond.min.js"></script>
+    <![endif]-->
+
+    <title>Flight Simulator Score Ranking</title>
+
+
+    <script>
+      var locationPath = location.pathname.replace(/\/[^/]+$/, "");
+      var dojoConfig = {
+        paths: {
+            bootstrap: "//rawgit.com/xsokev/Dojo-Bootstrap/master"
+        }
+      };
+    </script>
+
+    <script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.7.0/bootstrap-table.min.js"></script>
+    <script src="//js.arcgis.com/3.13compact"></script>
+    <script>
+      //var interval = 1000;
+      var interval = 180000;
+      require([
+        "esri/map",
+        "esri/tasks/query",
+        "esri/tasks/QueryTask",
+        "dojo/_base/array",
+        "dojo/domReady!"
+        ], function(Map, Query, QueryTask, array) {
+
+          var map = new Map("mapDiv", {
+            basemap: "satellite",
+            center: [136.9, 35.4],
+            zoom: 3,
+            slider: false
+          });
+
+          var query = new Query();
+          query.where = "1=1";
+          query.outFields = ["name", "score"];
+          query.orderByFields = ["score DESC"];
+          query.num = 5;
+
+          var queryTask = new QueryTask("http://localhost/ags1/rest/services/geoevent_move/wsflight/FeatureServer/0");
+          searchRank();
+          setInterval(function() {
+            searchRank();
+          }, interval);
+
+          function searchRank() {
+            queryTask.execute(query, function(result) {
+              console.log(result);
+              var store = [];
+              array.forEach(result.features, function(f, i) {
+                var data = {"rank": i+1, "name": f.attributes.name, "score": f.attributes.score};
+                store.push(data);
+              });
+              $('#table').bootstrapTable('load', store);
+              //$('#table').bootstrapTable('append', store);
+            });
+          }
+
+        });
+    </script>
+
+  </head>
+  <body>
+
+    <div id="cover"></div>
+    <div id="mapDiv"></div>
+
+    <div id="bs">
+
+      <div class="container">
+        <div class="row">
+          <div class="col-sm-12">
+            <div class="row">
+              <div class="col-sm-6">
+                <!--<h2>スコア ランキング</h2>-->
+                <p>スコア ランキング</p>
+              </div>
+              <!--<h2>　</h2>-->
+              <div class="col-sm-6" style="text-align:right;"><a href="index.html">ゲームへ戻る</a></div>
+            </div>
+            <table id="table" data-toggle="table" data-cache="false" data-height="150">
+              <thead>
+                  <tr>
+                      <th data-field="rank" data-width="50">順位</th>
+                      <th data-field="name" data-width="170">プレイヤー</th>
+                      <th data-field="score" data-width="120">スコア</th>
+                  </tr>
+              </thead>
+            </table>
+          </div>
+        </div>
+      </div><!-- /.container -->
+    </div>
+
+</body>
+</html>
