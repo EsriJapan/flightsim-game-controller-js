@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html><!--origin change-->
+<html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="initial-scale=1.0, width=device-width, maximum-scale=1.0, user-scalable=no">
@@ -181,6 +181,10 @@
         height: 100%;
         width: 100%;
       }
+
+      .esriUI {
+        display: none;
+      }
     </style>
 
     <script src="//code.jquery.com/jquery-1.8.2.min.js"></script>
@@ -195,7 +199,6 @@
       var track_path = [];
       var graphic;
       var currLocation;
-      //var watchId;
       var a = 0;
       var control_a = 90;
       var flightId;
@@ -206,13 +209,18 @@
       var scale = 50000000;
       var fencelayer;
       var rest_time = 180;
-      //var rest_time = 10;
       var game_end = false;
 
-      var tilt = 80;
       var goFilghtInterval = 50;
       var goFlightDistance = 10;
+      var sendStreamLocationInterval = 1000;
+      var tilt = 80;
       var turn = 0.025;
+      var initLocation = {
+        x: -4.49,
+        y: 48.3408,
+        z: 500
+      };
 
       require([
         "esri/Map",
@@ -276,6 +284,45 @@
         flightId = (S4() + S4() + "-" + S4() + "-4" + S4().substr(0,3) + "-" + S4() + "-" + S4() + S4() + S4()).toLowerCase();
         console.log("flightId: ", flightId);
 
+        // WebSocket 初期化
+        /*var stream = {
+          init : function() {
+            var location = "ws://localhost:6180/wsflight-sim-in"; // テスト環境
+            this._ws = new WebSocket(location);
+            this._ws.onopen = this.onopen;
+            this._ws.onmessage = this.onmessage;
+            this._ws.onclose = this.onclose;
+          },
+          onopen : function() {
+            console.log( "Connection Established to websocket" );
+            alert( 'Flight Simulator サーバーに接続しました' );
+          },
+          send : function(user, message) {
+            console.log("send!");
+            console.log(user + ':' + message);
+            user = user.replace(':', '_');
+            if (this._ws) {
+              console.log("send!");
+              this._ws.send(message);
+              console.log("send fin!");
+            }
+          },
+          onmessage : function(m) {
+            console.log("onmessage");
+          },
+          disconnect : function() {
+            this._ws.close();
+            this._ws = null;
+          },
+          onclose : function(m) {
+            this._ws = null;
+            alert('Flight Simulator サーバーに接続できませんでした');
+          }
+        };
+        stream.init();*/
+
+        var pt = new Point(initLocation);
+
         // マップ
         map = new Map({
           basemap: "hybrid",
@@ -288,14 +335,8 @@
         view = new SceneView({
           container: "view",
           map: map,
-          //scale: scale,
-          //center: [136.9, 35.4]
           camera: new Camera({
-            position: new Point({
-              x: -4.49,
-              y: 48.3908,
-              z: 1500
-            }),
+            position: pt,
             heading: 0,
             tilt: tilt
           })
@@ -303,9 +344,6 @@
         view.then(function() {
           initFunc();
         });
-
-        var planeLayer = new GraphicsLayer({opacity: 0});
-        map.add(planeLayer);
 
         // 操作ボタンの表示
         domStyle.set("leftbtn", "display", "block");
@@ -315,12 +353,10 @@
         on(dom.byId("leftbtn"), touch.press, function() {
           console.log("Left MouseDown");
           domStyle.set("leftbtn", "display", "block");
-          //a = 15;
           a = turn;
         });
         on(dom.byId("rightbtn"), touch.press, function() {
           console.log("Right MouseDown");
-          //a = -15;
           a = turn * -1;
         });
         on(dom.byId("leftbtn"), touch.release, function() {
@@ -384,14 +420,6 @@
             flightName = dom.byId("nameform").value;
             console.log("flightName: ", flightName);
 
-            //map.disableMapNavigation();
-
-            var location = {
-              "coords": {
-                "longitude": -4.49,
-                "latitude": 48.3908
-              }
-            }
             zoomToLocation(location);
 
             countdown();
@@ -402,24 +430,15 @@
             } else {
               alert("Browser doesn't support Geolocation. Visit http://caniuse.com to see browser support for the Geolocation API.");
             }*/
-
-            // 飛行機をクリックするとターボ実行
-            on(dom.byId("map_graphics_layer"), "click", function() {
-              console.log("map.graphics click");
-              for (var i = 0; i <= 14; i++) {
-                setTimeout(goFlight, 100);
-              };
-            });
           });
         }
 
         // 飛行機移動
         function goFlight() {
           if(game_end === false) {
-            console.log(a);
+            //console.log(a);
             // 飛行機の角度を更新
             control_a = control_a + a;
-            console.log(graphic.geometry.y);
 
             // メルカトルのY方向限界を超えるとワープ
             /*if(graphic.geometry.y > 84.5 || graphic.geometry.y < -84.5) {
@@ -427,10 +446,9 @@
             }*/
 
             // 緯度経度からWebメルカトルに変換
-            var wm = webMercatorUtils.geographicToWebMercator(graphic.geometry);
+            var wm = webMercatorUtils.geographicToWebMercator(pt);
             var x = wm.x;
             var y = wm.y;
-            //console.log(wm);
 
             // 移動先の座標値を計算
             x = wm.x + Math.cos(control_a / 180 * Math.PI) * goFlightDistance;
@@ -440,41 +458,36 @@
             var latlong = webMercatorUtils.xyToLngLat(x, y);
 
             // ポイント作成
-            var pt = new Point({
+            pt = new Point({
               x: latlong[0], 
               y: latlong[1],
-              z: 300
+              z: initLocation.z
             });
-            addGraphic(pt);
-            //map.centerAndZoom(pt, zoomlevel);
-            //map.centerAt(pt);
-            console.log("角度", 360 - (control_a - 90));
-            //view.center = [latlong[0], latlong[1]];
-            view.animateTo({
-              target: pt,
-              heading: 360 - (control_a - 90)
-            });
-            //view.camera.heading = 360 - (control_a - 90);
-
-            /*track_path.push(pt);
-            line.addPath(track_path);
-            var track = new Graphic(line, tracksymbol);
-            tracklayer.clear();
-            tracklayer.add(track);*/
-
-            // WebSocket送信メッセージ
-            var msg = {
-              "type": "message",
-              "id": flightId,
-              "name": flightName,
-              "lat": latlong[1],
-              "long": latlong[0],
-              "angle": 360 - (control_a - 90),
-              "tscore": myscore,
-              "fence": fence
-            }
-            //stream.send("operation", JSON.stringify(msg));
+            view.animateTo(
+              new Camera({
+                position: pt,
+                heading: 360 - (control_a - 90),
+                tilt: tilt
+              })
+            );
           }
+        }
+
+        function sendStreamLocation() {
+          // WebSocket送信メッセージ
+          var msg = {
+            "type": "message",
+            "id": flightId,
+            "name": flightName,
+            "lat": pt.x,
+            "long": pt.y,
+            "z": pt.z,
+            "angle": 360 - (control_a - 90),
+            "tscore": myscore,
+            "fence": fence
+          }
+          console.log("stream message: ", msg);
+          //stream.send("operation", JSON.stringify(msg));
         }
 
         /*function locationError(error) {
@@ -510,39 +523,18 @@
 
         // 現在地移動・飛行機表示
         function zoomToLocation(location) {
-          //var pt = new Point(location.coords.longitude, location.coords.latitude);
-          var pt = new Point({
-            x: location.coords.longitude, 
-            y: location.coords.latitude,
-            z: 300
-          });
-          addGraphic(pt);
-          //map.centerAndZoom(pt, zoomlevel);
-          //map.centerAt(pt);
-          //view.center = [location.coords.longitude, location.coords.latitude];
           console.log("view", view);
-          view.animateTo({
-            target: pt,
-            tilt: tilt
-          });
-
-          /*track_path.push(pt);
-          line = new Polyline(new SpatialReference({wkid:4326}));
-          var track = new Graphic(line, tracksymbol);
-          tracklayer.add(track);*/
+          view.animateTo(
+            new Camera({
+              position: pt,
+              heading: 360 - (control_a - 90),
+              tilt: tilt
+            })
+          );
 
           // 飛行機移動
           setInterval(goFlight, goFilghtInterval);
-        }
-
-        // 飛行機グラフィック生成
-        function addGraphic(pt){
-          planeLayer.clear();
-          //var symbol = new PictureMarkerSymbol("images/plane.png", 26, 26);
-          var symbol = new SimpleMarkerSymbol();
-          symbol.angle = 90 - control_a;
-          graphic = new Graphic(pt, symbol);
-          planeLayer.add(graphic);
+          setInterval(sendStreamLocation, sendStreamLocationInterval)
         }
 
         // タイムリミットのカウントダウン
