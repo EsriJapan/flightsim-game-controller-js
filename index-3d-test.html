@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html><!--origin change-->
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1.0, width=device-width, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="translucent-black">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Flight Simulator Controller</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.0beta1/esri/css/esri.css">
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0px;
+        padding: 0px;
+        width: 100%;
+      }
+
+      body {
+        -moz-user-select:none;
+        -ms-user-select:none;
+        -webkit-user-select:none;
+        -khtml-user-select:none;
+        -webkit-user-drag: none;
+        -khtml-user-drag: none;
+        -webkit-touch-callout: none;
+      }
+
+      #score {
+        position:absolute;
+        bottom: 15px;
+        left: 15px;
+        z-index: 999;
+        font-size: 18pt;
+        font-family: "Meiryo";
+        color: white;
+        opacity: 0.8;
+      }
+
+      #time {
+        position:absolute;
+        top: 15px;
+        right: 15px;
+        z-index: 999;
+        font-size: 32pt;
+        font-family: "Meiryo";
+        color: white;
+        opacity: 0.8;
+      }
+
+      #leftbtn {
+        position:absolute;
+        top: 45%;
+        left: 15px;
+        z-index: 30;
+        display: none;
+        opacity: 0.8;
+      }
+
+      #rightbtn {
+        position:absolute;
+        top: 45%;
+        right: 15px;
+        z-index: 30;
+        display: none;
+        opacity: 0.8;
+      }
+
+      .img_Guard{
+        position:absolute;
+        display:block;
+        width:100%;
+        height:100%;
+        background: url(images/spacer.gif);
+      }
+
+
+      .container {
+        width:100%;
+        height:100%;
+        position:absolute;
+      }
+      figure {
+        margin:0;
+      }
+      html, body {
+        height:100%;
+        margin:0;
+        /*font-family: 'Satisfy', cursive;*/
+        font-family: 'Meiryo';
+        background:black;
+        overflow: hidden;
+      }
+      article {
+        position:absolute;
+        top:50%;
+        left:50%;
+        color:white;
+        z-index:1;
+        width:600px;
+        height:200px;
+        margin:-100px 0 0 -300px;
+        text-align:center;
+      }
+      span.btn {
+        display:inline-block;
+        background: #000000;
+        opacity: 0.5;
+        padding: 15px;
+        color: white;
+        font-size: 17px;
+        cursor:pointer;
+      }
+      a.top {
+        color:white;
+        text-decoration:none;
+        font-size:26px;
+        display:block;
+        margin:0 0 30px;
+        width:100%;
+      }
+      a.title {
+        color:white;
+        text-decoration:none;
+        font-size:12px;
+        display:block;
+        margin:0 0 30px;
+        width:100%;
+      }
+      .esriSimpleSlider {
+        border: 0;
+        opacity: 0.8;
+      }
+
+      #howtoplay {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 100%;
+        width: 100%;
+        background-color: #000000;
+        opacity: 0.75;
+        z-index: 9999;
+      }
+      #howtoimg {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: auto;
+        max-width: 95%;
+        max-height: 95%;
+        z-index: 99999;
+      }
+      #closebtn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        max-width: 15%;
+        max-height: 15%;
+        opacity: 0.9;
+        z-index: 99999;
+      }
+    </style>
+
+    <script src="//code.jquery.com/jquery-1.8.2.min.js"></script>
+    <script src="plugins/Vague.js"></script>
+    <script src="https://js.arcgis.com/4.0beta1/"> </script>
+    <script>
+      var map;
+      var view;
+      var tracklayer;
+      var streamlayer;
+      var line;
+      var track_path = [];
+      var graphic;
+      var currLocation;
+      //var watchId;
+      var a = 0;
+      var control_a = 90;
+      var flightId;
+      var flightName;
+      var myscore = 0;
+      var fence = 0;
+      var zoomlevel = 3;
+      var scale = 50000000;
+      var fencelayer;
+      var rest_time = 180;
+      //var rest_time = 10;
+      var game_end = false;
+
+      var tilt = 75;
+      var goFilghtInterval = 250;
+      var goFlightDistance = 10; //250
+      var turn = 0.1;
+      var flightValueZ = 50; //2000
+      var initZ = 200; //3700
+
+      var simPosition = {
+        x: -4.49,
+        y: 48.3708
+      };
+
+      require([
+        "esri/Map",
+        "esri/geometry/Point",
+        "esri/symbols/SimpleMarkerSymbol",
+        "esri/symbols/SimpleLineSymbol",
+        "esri/Graphic",
+        "esri/Color",
+
+        "esri/geometry/support/webMercatorUtils",
+        "esri/symbols/PictureMarkerSymbol",
+        "esri/layers/GraphicsLayer",
+        "esri/symbols/SimpleLineSymbol",
+        "esri/geometry/Polyline",
+        "esri/geometry/SpatialReference",
+
+        "esri/layers/StreamLayer",
+        "esri/renderers/SimpleRenderer",
+        "esri/layers/ArcGISDynamicLayer",
+
+        "esri/views/SceneView",
+        "esri/Camera",
+        "esri/layers/SceneLayer",
+
+        "dojo/on",
+        "dojo/dom",
+        "dojo/dom-style",
+        "dojo/touch",
+
+        "dojo/domReady!"
+      ], function(
+        Map,
+        Point,
+        SimpleMarkerSymbol,
+        SimpleLineSymbol,
+        Graphic,
+        Color,
+
+        webMercatorUtils,
+        PictureMarkerSymbol,
+        GraphicsLayer,
+        SimpleLineSymbol,
+        Polyline,
+        SpatialReference,
+
+        StreamLayer,
+        SimpleRenderer,
+        ArcGISDynamicMapServiceLayer,
+
+        SceneView,
+        Camera,
+        SceneLayer,
+
+        on,
+        dom,
+        domStyle,
+        touch
+      ) {
+
+        // 仮想GUID
+        flightId = (S4() + S4() + "-" + S4() + "-4" + S4().substr(0,3) + "-" + S4() + "-" + S4() + S4() + S4()).toLowerCase();
+        console.log("flightId: ", flightId);
+
+        // WebSocket 初期化
+        /*var stream = {
+          init : function() {
+            var location = "ws://localhost:6180/wsflight-sim-in"; // テスト環境
+            this._ws = new WebSocket(location);
+            this._ws.onopen = this.onopen;
+            this._ws.onmessage = this.onmessage;
+            this._ws.onclose = this.onclose;
+          },
+          onopen : function() {
+            console.log( "Connection Established to websocket" );
+            alert( 'Flight Simulator サーバーに接続しました' );
+          },
+          send : function(user, message) {
+            console.log("send!");
+            console.log(user + ':' + message);
+            user = user.replace(':', '_');
+            if (this._ws) {
+              console.log("send!");
+              this._ws.send(message);
+              console.log("send fin!");
+            }
+          },
+          onmessage : function(m) {
+            console.log("onmessage");
+          },
+          disconnect : function() {
+            this._ws.close();
+            this._ws = null;
+          },
+          onclose : function(m) {
+            this._ws = null;
+            alert('Flight Simulator サーバーに接続できませんでした');
+          }
+        };
+        stream.init();*/
+
+        // マップ
+        map = new Map({
+          basemap: "hybrid",
+          layers: [
+            new SceneLayer({
+              url: "https://scene.arcgis.com/arcgis/rest/services/Hosted/Buildings_Brest/SceneServer/layers/0"
+            })
+          ]
+        });
+        view = new SceneView({
+          container: "view",
+          map: map,
+          //scale: scale,
+          //center: [136.9, 35.4]
+          /*camera: new Camera({
+            position: new Point({
+              x: 136.9,
+              y: 35.4,
+              z: initZ
+            }),
+            heading: 0,
+            tilt: tilt
+          })*/
+          camera: {
+            position: {
+              x: -500180.36326436285,
+              y: 6170505.2115241615,
+              z: initZ,
+              spatialReference: {
+                wkid: 102100
+              }
+            },
+            heading: 0,
+            tilt: 87.51137018816861
+          }
+        });
+        view.then(function() {
+          initFunc();
+        });
+
+        var planeLayer = new GraphicsLayer();
+        map.add(planeLayer);
+        //tracklayer = new GraphicsLayer();
+
+        // レイヤー:ポイント加算用ジオフェンス
+        /*fencelayer = new ArcGISDynamicMapServiceLayer("http://localhost:6080/ags1/rest/services/geoevent_move/wsflight/MapServer", {
+          opacity: 0.7
+        });
+
+        // レイヤー:他ユーザーの飛行機（スコア取得にも利用）
+        streamlayer = new StreamLayer("http://localhost:6080/ags1/rest/services/WSFlight-sim-stream/StreamServer", { // テスト環境
+          purgeOptions: { displayCount: 10000 },
+          opacity: 0.6
+        });
+        var othersymbol = new PictureMarkerSymbol("images/plane2.png", 26, 26);
+        var renderer = new SimpleRenderer(othersymbol);
+        renderer.setRotationInfo({
+         field: "angle"
+        });
+        streamlayer.setRenderer(renderer);
+        // 自分の飛行機を非表示
+        //streamlayer.setDefinitionExpression("NOT (id = '" + flightId + "')");
+        // スコアの同期
+        streamlayer.on("graphic-add", function(evt) {
+          console.log("streamlayer evt: ", evt);
+          // 自分の飛行機を非表示+スコアを取得
+          if(evt.graphic.attributes.id === flightId) {
+            evt.graphic.hide();
+            fence = evt.graphic.attributes.fence;
+            myscore = evt.graphic.attributes.tscore;
+            dom.byId("myscore").innerHTML = myscore;
+          }
+        });
+
+        // レイヤー追加
+        map.addLayers([fencelayer, streamlayer]);*/
+        //map.on("load", initFunc);
+
+        /*var tracksymbol = new SimpleLineSymbol(
+          SimpleLineSymbol.STYLE_SOLID,
+          new Color([255,0,0]),
+          2
+        );*/
+
+        // 操作ボタンの表示
+        domStyle.set("leftbtn", "display", "block");
+        domStyle.set("rightbtn", "display", "block");
+
+        // ボタン操作イベント
+        on(dom.byId("leftbtn"), touch.press, function() {
+          console.log("Left MouseDown");
+          domStyle.set("leftbtn", "display", "block");
+          //a = 15;
+          a = turn;
+        });
+        on(dom.byId("rightbtn"), touch.press, function() {
+          console.log("Right MouseDown");
+          //a = -15;
+          a = turn * -1;
+        });
+        on(dom.byId("leftbtn"), touch.release, function() {
+          console.log("Left MouseUp");
+          a = 0;
+        });
+        on(dom.byId("rightbtn"), touch.release, function() {
+          console.log("Right MouseUp");
+          a = 0;
+        });
+
+        // ID生成
+        function S4() {
+          return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+        }
+
+        // 端末の回転時にマップを調整
+        function orientationChanged() {
+          /*if(map){
+            map.reposition();
+            map.resize();
+          }*/
+        }
+
+        // 操作説明画面の非表示
+        function closeHowto() {
+          $("#howtoplay").stop().animate({opacity: 0}, {duration: 600});
+          $("#howtoimg").stop().animate({opacity: 0}, {duration: 600});
+          $("#closebtn").stop().animate({opacity: 0}, {duration: 600});
+          setTimeout(function() {
+            $("#howtoplay").hide();
+            $("#howtoimg").hide();
+            $("#closebtn").hide();
+          }, 600);
+        }
+
+        // マップ読み込み完了
+        function initFunc() {
+          console.log("initFunc");
+          // 操作説明画面の非表示（閉じるボタンのクリック）
+          $("#closebtn").on("click", function() {
+            closeHowto();
+          });
+
+          // 操作説明画面の非表示（自動）
+          setTimeout(function() {
+            closeHowto();
+          }, 15000);
+
+          var vague = $(".container").Vague({intensity:30});
+          vague.blur();
+
+          $(".btn").on("click", function() {
+            vague.toggleblur();
+            $(".btn").stop().animate({opacity: 0}, {duration: 600});
+            $("input.name").stop().animate({opacity: 0}, {duration: 600});
+            $("a.title").stop().animate({opacity: 0}, {duration: 600});
+            setTimeout(function() {$("article").hide();}, 600);
+            $("figure.container").hide();
+
+            flightName = dom.byId("nameform").value;
+            console.log("flightName: ", flightName);
+
+            //map.disableMapNavigation();
+
+            var location = {
+              "coords": {
+                "longitude": 139.75,
+                "latitude": 35.69
+              }
+            }
+            zoomToLocation(location);
+
+            countdown();
+
+            // 現在地取得
+            /*if( navigator.geolocation ) {
+              navigator.geolocation.getCurrentPosition(zoomToLocation, locationError);
+            } else {
+              alert("Browser doesn't support Geolocation. Visit http://caniuse.com to see browser support for the Geolocation API.");
+            }*/
+
+            // 飛行機をクリックするとターボ実行
+            on(dom.byId("map_graphics_layer"), "click", function() {
+              console.log("map.graphics click");
+              for (var i = 0; i <= 14; i++) {
+                setTimeout(goFlight, 100);
+              };
+            });
+          });
+        }
+
+        // 飛行機移動
+        function goFlight() {
+          if(game_end === false) {
+            console.log(a);
+            // 飛行機の角度を更新
+            control_a = control_a + a;
+            console.log(graphic.geometry.y);
+
+            // メルカトルのY方向限界を超えるとワープ
+            /*if(graphic.geometry.y > 84.5 || graphic.geometry.y < -84.5) {
+              graphic.geometry.y = graphic.geometry.y * -1;
+            }*/
+
+            // 緯度経度からWebメルカトルに変換
+            var wm = webMercatorUtils.geographicToWebMercator(graphic.geometry);
+            var x = wm.x;
+            var y = wm.y;
+            //console.log(wm);
+
+            // 移動先の座標値を計算
+            //x = wm.x + Math.cos(control_a / 180 * Math.PI) * 250000;
+            //y = wm.y + Math.sin(control_a / 180 * Math.PI) * 250000;
+            x = wm.x + Math.cos(control_a / 180 * Math.PI) * goFlightDistance;
+            y = wm.y + Math.sin(control_a / 180 * Math.PI) * goFlightDistance;
+
+            // 計算後の座標値を緯度経度に変換
+            var latlong = webMercatorUtils.xyToLngLat(x, y);
+
+            // ポイント作成
+            var pt = new Point({
+              x: latlong[0], 
+              y: latlong[1],
+              z: flightValueZ
+            });
+            var shadowPt = new Point({
+              x: latlong[0], 
+              y: latlong[1]
+            });
+            addGraphic(pt, shadowPt);
+            //map.centerAndZoom(pt, zoomlevel);
+            //map.centerAt(pt);
+            console.log("角度", 360 - (control_a - 90));
+            //view.center = [latlong[0], latlong[1]];
+            view.animateTo({
+              target: pt,
+              heading: 360 - (control_a - 90)
+            });
+            //view.camera.heading = 360 - (control_a - 90);
+
+            /*track_path.push(pt);
+            line.addPath(track_path);
+            var track = new Graphic(line, tracksymbol);
+            tracklayer.clear();
+            tracklayer.add(track);*/
+
+            // WebSocket送信メッセージ
+            var msg = {
+              "type": "message",
+              "id": flightId,
+              "name": flightName,
+              "lat": latlong[1],
+              "long": latlong[0],
+              "angle": 360 - (control_a - 90),
+              "tscore": myscore,
+              "fence": fence
+            }
+            //stream.send("operation", JSON.stringify(msg));
+          }
+        }
+
+        /*function locationError(error) {
+          var location = {
+            "coords": {
+              "longitude": 136.9,
+              "latitude": 35.4
+            }
+          }
+          zoomToLocation(location);
+          //error occurred so stop watchPosition
+          if( navigator.geolocation ) {
+            navigator.geolocation.clearWatch(watchId);
+          }
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              alert("Location not provided");
+              break;
+
+            case error.POSITION_UNAVAILABLE:
+              alert("Current location not available");
+              break;
+
+            case error.TIMEOUT:
+              alert("Timeout");
+              break;
+
+            default:
+              alert("unknown error");
+              break;
+          }
+        }*/
+
+        // 現在地移動・飛行機表示
+        function zoomToLocation(location) {
+          //var pt = new Point(location.coords.longitude, location.coords.latitude);
+          // シミュレーション
+          var pt = new Point({
+            x: simPosition.x, 
+            y: simPosition.y,
+            z: flightValueZ
+          });
+          var shadowPt = new Point({
+            x: simPosition.x, 
+            y: simPosition.y
+          });
+
+          /*var pt = new Point({
+            x: location.coords.longitude, 
+            y: location.coords.latitude,
+            z: flightValueZ
+          });
+          var shadowPt = new Point({
+            x: location.coords.longitude, 
+            y: location.coords.latitude
+          });*/
+          addGraphic(pt, shadowPt);
+          //map.centerAndZoom(pt, zoomlevel);
+          //map.centerAt(pt);
+          //view.center = [location.coords.longitude, location.coords.latitude];
+          console.log("view", view);
+          view.animateTo({
+            target: pt,
+            tilt: tilt
+          });
+
+          /*track_path.push(pt);
+          line = new Polyline(new SpatialReference({wkid:4326}));
+          var track = new Graphic(line, tracksymbol);
+          tracklayer.add(track);*/
+
+          // 飛行機移動
+          setInterval(goFlight, goFilghtInterval);
+        }
+
+        // 飛行機グラフィック生成
+        function addGraphic(pt, shadowPt){
+          planeLayer.clear();
+          var symbol = new PictureMarkerSymbol("images/plane.png", 26, 26);
+          var shadow_symbol = new PictureMarkerSymbol("images/plane-shadow.png", 26, 26);
+          symbol.angle = 90 - control_a;
+          shadow_symbol.angle = 90 - control_a;
+          /*symbol.set({
+            angle: 90 - control_a
+          });*/
+          //view.camera.heading = 90 - control_a;
+          graphic = new Graphic(pt, symbol);
+          shadow_graphic = new Graphic(shadowPt, shadow_symbol);
+          planeLayer.add(graphic);
+          planeLayer.add(shadow_graphic);
+        }
+
+        // タイムリミットのカウントダウン
+        function countdown() {
+          setInterval(function() {
+            console.log("countdown: ", rest_time);
+            if(rest_time > 1) {
+              rest_time = rest_time - 1;
+              if(rest_time === 30) {
+                $("#time").css("font-size", "64pt");
+              }
+              else if(rest_time === 10) {
+                $("#time").css("color", "red");
+              }
+              dom.byId("rest_time").innerHTML = rest_time;
+            }
+            else if(rest_time === 1) {
+              rest_time = rest_time - 1;
+              dom.byId("rest_time").innerHTML = rest_time;
+              game_end = true;
+
+
+              $("#score").stop().animate({opacity: 0}, {duration: 300});
+              $("#time").stop().animate({opacity: 0}, {duration: 300});
+              $("#leftbtn").stop().animate({opacity: 0}, {duration: 300});
+              $("#rightbtn").stop().animate({opacity: 0}, {duration: 300});
+              $("a.top").html(flightName + "のスコア");
+              $("a.title").html(myscore).css("font-size", "64px");
+              $(".btn").html("ランキング ページへ移動").css("font-size", "14px");
+              $(".btn").unbind();
+              $(".btn").on("click", function() {
+                location.href="ranking_mobile.html"
+              });
+              dom.byId("")
+              setTimeout(function() {
+                var vague = $(".container").Vague({intensity:30});
+                vague.blur();
+                $("figure.container").show();
+                setTimeout(function() {$("article").show();}, 600);
+                $("a.title").stop().animate({opacity: 1}, {duration: 600});
+                $(".btn").stop().animate({opacity: 0.5}, {duration: 600});
+                $("img#forkme").html(myscore).css("display", "block");
+              }, 1200);
+            }
+          }, 1000);
+        }
+
+      });
+    </script>
+  </head>
+
+  <body onorientationchange="orientationChanged();">
+    <a href="https://github.com/EsriJapan"><img id="forkme" style="z-index: 1000; position: absolute; top: 0; right: 0; border: 0; display: none;" src="https://camo.githubusercontent.com/652c5b9acfaddf3a9c326fa6bde407b87f7be0f4/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"></a>
+    <div id="howtoplay"></div>
+    <img id="howtoimg" src="images/howtoplay.png"/>
+    <img id="closebtn" src="images/close.png"/>
+
+    <figure class="container"></figure>
+    <article>
+      <a class="top" href="#">Multi-User Flight Simulator</a>
+      <a class="title" href="#">名前を入力してスタート！</a>
+      <div><input id="nameform" class="name" type="text" name="name" size="40" value="パイロット" maxlength="12"></div><br>
+      <span href="#" class="btn">Start!</span>
+    </article>
+
+    <div id="time"><span id="rest_time">180</span></div>
+    <div id="score">Score: <span id="myscore">0</span></div>
+
+    <div id="view" style="width:100%; height:100%;">
+      <div id="leftbtn"><span class="img_Guard"></span><img src="images/leftbtn.png"/></div>
+      <div id="rightbtn"><span class="img_Guard"></span><img src="images/rightbtn.png"/></div>
+    </div>
+  </body>
+
+</html>
