@@ -185,6 +185,32 @@
       .esriUI {
         display: none;
       }
+
+      #overview {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 300px;
+        height: 200px;
+        border: 1px solid black;
+        z-index: 100;
+      }
+
+      .ov-plane-img {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: auto;
+        max-width: 100%;
+        max-height: 100%;
+        height: 20px;
+        width: 20px;
+      }
+      .centering {
+        text-align: center;
+      }
     </style>
 
     <script src="//code.jquery.com/jquery-1.8.2.min.js"></script>
@@ -206,7 +232,7 @@
       var myscore = 0;
       var fence = 0;
       var zoomlevel = 3;
-      var scale = 50000000;
+      var scale = 10000;
       var fencelayer;
       var rest_time = 180;
       var game_end = false;
@@ -221,6 +247,11 @@
         y: 48.3408,
         z: 500
       };
+      /*var initLocation = {
+        x: 139.75,
+        y: 35.69,
+        z: 5000
+      };*/
 
       require([
         "esri/Map",
@@ -244,6 +275,7 @@
         "esri/views/SceneView",
         "esri/Camera",
         "esri/layers/SceneLayer",
+        "esri/views/MapView",
 
         "dojo/on",
         "dojo/dom",
@@ -273,6 +305,7 @@
         SceneView,
         Camera,
         SceneLayer,
+        MapView,
 
         on,
         dom,
@@ -343,6 +376,16 @@
         });
         view.then(function() {
           initFunc();
+        });
+
+        overviewMap = new Map({
+          basemap: "hybrid"
+        });
+        overview = new MapView({
+          container: "overview",
+          map: overviewMap,
+          center: [pt.x, pt.y],
+          scale: scale
         });
 
         // 操作ボタンの表示
@@ -470,6 +513,8 @@
                 tilt: tilt
               })
             );
+            overview.center = [pt.x, pt.y];
+            overview.rotation = control_a - 90;
           }
         }
 
@@ -531,6 +576,13 @@
               tilt: tilt
             })
           );
+          overview.center = [pt.x, pt.y];
+
+          on(dom.byId("ovPlane"), "click", function() {
+            for (var i = 0; i <= 100; i++) {
+              setTimeout(goFlight, 50);
+            };
+          });
 
           // 飛行機移動
           setInterval(goFlight, goFilghtInterval);
@@ -607,6 +659,10 @@
       <img class="cockpit-img" src="images/cockpit.png">
       <div id="leftbtn"><span class="img_Guard"></span><img src="images/leftbtn.png"/></div>
       <div id="rightbtn"><span class="img_Guard"></span><img src="images/rightbtn.png"/></div>
+    </div>
+
+    <div id="overview">
+      <div id="ovPlane" class="centering"><img class="ov-plane-img" src="images/airplane.png"/></div>
     </div>
 
     <div id="view" style="width:100%; height:100%;">
