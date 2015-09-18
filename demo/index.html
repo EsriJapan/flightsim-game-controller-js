@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1.0, width=device-width, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="translucent-black">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>3D フライト シミュレーター</title>
+
+    <link rel="stylesheet" href="lib/bootstrap-3.2.0/css/bootstrap.min.css" >
+    <link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/esri/css/esri.css">
+    <style>
+      /* General */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        font-family: 'Meiryo';
+        background:black;
+        overflow: hidden;
+      }
+      body {
+        -moz-user-select:none;
+        -ms-user-select:none;
+        -webkit-user-select:none;
+        -khtml-user-select:none;
+        -webkit-user-drag: none;
+        -khtml-user-drag: none;
+        -webkit-touch-callout: none;
+      }
+
+      /* Flight UI */
+      #leftbtn {
+        position:absolute;
+        top: 45%;
+        left: 15px;
+        z-index: 30;
+        display: none;
+        opacity: 0.8;
+      }
+      #rightbtn {
+        position:absolute;
+        top: 45%;
+        right: 15px;
+        z-index: 30;
+        display: none;
+        opacity: 0.8;
+      }
+      .img_Guard{
+        position:absolute;
+        display:block;
+        width:100%;
+        height:100%;
+        background: url(images/spacer.gif);
+      }
+      #cockpit {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 100%;
+        width: 100%;
+        z-index: 99; 
+      }
+      .cockpit-img {
+        height: 100%;
+        width: 100%;
+      }
+      .esriUI {
+        display: none;
+      }
+      .esri-attribution {
+        display: none;
+      }
+      #overview {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 300px;
+        height: 200px;
+        border: 1px solid black;
+        z-index: 100;
+      }
+      .ov-plane-img {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: auto;
+        max-width: 100%;
+        max-height: 100%;
+        height: 20px;
+        width: 20px;
+      }
+      .centering {
+        text-align: center;
+      }
+
+      /* Setting UI */
+      #settingview {
+        position: relative;
+        height: 250px;
+        width: 100%;
+      }
+      #search {
+        margin-bottom: 15px;
+      }
+    </style>
+
+      <!-- Load Leaflet from CDN-->
+      <link rel="stylesheet" href="//cdn.jsdelivr.net/leaflet/0.7.3/leaflet.css" />
+      <script src="//cdn.jsdelivr.net/leaflet/0.7.3/leaflet.js"></script>
+
+      <!-- Load Esri Leaflet from CDN -->
+      <script src="//cdn.jsdelivr.net/leaflet.esri/1.0.0/esri-leaflet.js"></script>
+
+    <script>
+      var locationPath = location.pathname.replace(/\/[^/]+$/, "");
+      var dojoConfig = {
+        paths: {
+          bootstrap: locationPath  + "/lib/dojo-bootstrap"
+        }
+      }
+    </script>
+
+    <!--<script src="//code.jquery.com/jquery-1.8.2.min.js"></script>-->
+    <script src="https://jsdev.arcgis.com/4.0beta2/"> </script>
+    <script>
+      // 設定用変数
+      var settingMap, settingView;
+      var stops = [];
+
+      // フライト用変数
+      var map, view, overviewMap, overview, minute;
+      var flight_end = false;
+      var a = 0;
+      var control_a = 90;
+      var scale = 10000000;
+      var goFilghtInterval = 50;
+      var goFlightDistance = 30;
+      var sendStreamLocationInterval = 1000;
+      var tilt = 82;
+      var turn = 0.085;
+      var initLocation = {
+        x: 139.75,
+        y: 35.69,
+        z: 3000
+      };
+
+      require([
+        "esri/Map",
+        "esri/geometry/Point",
+        "esri/symbols/SimpleMarkerSymbol",
+        "esri/symbols/SimpleLineSymbol",
+        "esri/Graphic",
+        "esri/Color",
+
+        "esri/geometry/support/webMercatorUtils",
+        "esri/symbols/PictureMarkerSymbol",
+        "esri/layers/GraphicsLayer",
+        "esri/symbols/SimpleLineSymbol",
+        "esri/geometry/Polyline",
+        "esri/geometry/SpatialReference",
+
+        "esri/renderers/SimpleRenderer",
+        "esri/layers/ArcGISDynamicLayer",
+
+        "esri/views/SceneView",
+        "esri/Camera",
+        "esri/layers/SceneLayer",
+        "esri/views/MapView",
+        "esri/widgets/Search",
+
+        "esri/core/Scheduler",
+
+        "dojo/on",
+        "dojo/dom",
+        "dojo/dom-style",
+        "dojo/touch",
+        "dojo/query",
+
+        "bootstrap/Modal",
+
+        "dojo/domReady!"
+      ], function(
+        Map,
+        Point,
+        SimpleMarkerSymbol,
+        SimpleLineSymbol,
+        Graphic,
+        Color,
+
+        webMercatorUtils,
+        PictureMarkerSymbol,
+        GraphicsLayer,
+        SimpleLineSymbol,
+        Polyline,
+        SpatialReference,
+
+        SimpleRenderer,
+        ArcGISDynamicMapServiceLayer,
+
+        SceneView,
+        Camera,
+        SceneLayer,
+        MapView,
+        Search,
+
+        Scheduler,
+
+        on,
+        dom,
+        domStyle,
+        touch,
+        query,
+
+        modal
+      ) {
+
+        query("#settingModal").modal("show");
+        
+        initSettingView();
+
+        function initSettingView() {
+          settingMap = new Map({
+            basemap: "topo"
+          });
+          settingView = new MapView({
+            container: "settingview",
+            map: settingMap,
+            center: [139, 35],
+            scale: 150000000,
+            stationary: false,
+            ui: {
+              components: []
+            }
+          });
+
+          var stopsLayer = new GraphicsLayer();
+          settingMap.add(stopsLayer);
+
+          var searchWidget = new Search({
+            view: settingView,
+            graphicsLayer: stopsLayer,
+            enablePopup: false
+          }, "search");
+          searchWidget.startup();
+
+          settingView.then(function() {
+            initFlightView();
+            searchWidget.focus();
+          });
+
+          on(dom.byId("settingClearBtn"), "click", function() {
+            stopsLayer.clear();
+          });
+
+          on(dom.byId("settingFinBtn"), "click", function() {
+            if(searchWidget.searchResults !== null) {
+              console.log(searchWidget.searchResults[0][0].feature);
+              startlocation = new Point({
+                x: searchWidget.searchResults[0][0].feature.geometry.longitude, 
+                y: searchWidget.searchResults[0][0].feature.geometry.latitude,
+                z: initLocation.z
+              });
+              zoomToLocation(startlocation);
+              query("#settingModal").modal("hide");
+            }
+            else {
+              query("#alertModal").modal("show");
+            }
+          });
+
+          on(dom.byId("alertCloseBtn"), "click", function() {
+            searchWidget.focus();
+            query("#alertModal").modal("hide");
+          });
+        }
+
+        function initFlightView() {
+
+          var pt = new Point(initLocation);
+
+          // マップ
+          map = new Map({
+            basemap: "hybrid"//,
+            /*layers: [
+              new SceneLayer({
+                url: "https://scene.arcgis.com/arcgis/rest/services/Hosted/Buildings_Brest/SceneServer/layers/0"
+              })
+            ]*/
+          });
+          view = new SceneView({
+            container: "view",
+            map: map,
+            camera: new Camera({
+              position: pt,
+              heading: 0,
+              tilt: tilt
+            }),
+
+            environment: {
+              lighting: {
+                directShadows: true,
+                ambientOcclusion: true
+              }
+            }
+          });
+          view.then(function() {
+            initFunc();
+
+            view.environmentManager.realisticAtmosphere = true;
+          });
+
+          //var dateField = document.getElementById("dateField");
+          minute = 60 * 1000;
+          view.environment.lighting.date = new Date("Jan 1 2015 12:00:00 GMT+0200");
+          updateDatefield();
+
+          overviewMap = new Map({
+            basemap: "hybrid"
+          });
+          overview = new MapView({
+            container: "overview",
+            map: overviewMap,
+            center: [pt.x, pt.y],
+            scale: scale
+          });
+
+          // 操作ボタンの表示
+          domStyle.set("leftbtn", "display", "block");
+          domStyle.set("rightbtn", "display", "block");
+
+          // ボタン操作イベント
+          on(dom.byId("leftbtn"), touch.press, function() {
+            console.log("Left MouseDown");
+            domStyle.set("leftbtn", "display", "block");
+            a = turn;
+          });
+          on(dom.byId("rightbtn"), touch.press, function() {
+            console.log("Right MouseDown");
+            a = turn * -1;
+          });
+          on(dom.byId("leftbtn"), touch.release, function() {
+            console.log("Left MouseUp");
+            a = 0;
+          });
+          on(dom.byId("rightbtn"), touch.release, function() {
+            console.log("Right MouseUp");
+            a = 0;
+          });
+
+        }
+
+        // 端末の回転時にマップを調整
+        function orientationChanged() {
+          /*if(map){
+            map.reposition();
+            map.resize();
+          }*/
+        }
+
+        // マップ読み込み完了
+        function initFunc() {
+          console.log("initFunc");
+          //zoomToLocation(location);
+        }
+
+        function updateDatefield() {
+          var date = new Date();
+          date.setTime(view.environment.lighting.date.getTime() + 2 * minute);
+          view.environment.lighting.date = date;
+          /*dateField.innerHTML = date.toLocaleString("fr-FR", {
+            timeZone: "Europe/Paris"
+          });*/
+        };
+
+        // 飛行機移動
+        function goFlight() {
+          updateDatefield();
+          if(flight_end === false) {
+            // 飛行機の角度を更新
+            control_a = control_a + a;
+
+            // 緯度経度からWebメルカトルに変換
+            var wm = webMercatorUtils.geographicToWebMercator(pt);
+            var x = wm.x;
+            var y = wm.y;
+
+            // 移動先の座標値を計算
+            x = wm.x + Math.cos(control_a / 180 * Math.PI) * goFlightDistance;
+            y = wm.y + Math.sin(control_a / 180 * Math.PI) * goFlightDistance;
+
+            // 計算後の座標値を緯度経度に変換
+            var latlong = webMercatorUtils.xyToLngLat(x, y);
+
+            // ポイント作成
+            pt = new Point({
+              x: latlong[0], 
+              y: latlong[1],
+              z: initLocation.z
+            });
+            view.animateTo(
+              new Camera({
+                position: pt,
+                heading: 360 - (control_a - 90),
+                tilt: tilt
+              })
+            );
+            overview.center = [pt.x, pt.y];
+            overview.rotation = control_a - 90;
+          }
+        }
+
+        // 現在地移動・飛行機表示
+        function zoomToLocation(location) {
+          console.log("view", view);
+          pt = location;
+          view.animateTo(
+            new Camera({
+              position: pt,
+              heading: 360 - (control_a - 90),
+              tilt: tilt
+            })
+          );
+          overview.center = [pt.x, pt.y];
+
+          on(dom.byId("ovPlane"), "click", function() {
+            for (var i = 0; i <= 100; i++) {
+              setTimeout(goFlight, 50);
+            };
+          });
+
+          // 飛行機移動
+          setInterval(goFlight, goFilghtInterval);
+        }
+
+      });
+    </script>
+  </head>
+
+  <body onorientationchange="orientationChanged();">
+    <a href="https://github.com/EsriJapan/flightsim-game-controller-js/demo"><img id="forkme" style="z-index: 1000; position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/652c5b9acfaddf3a9c326fa6bde407b87f7be0f4/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"></a>
+
+    <div id="cockpit">
+      <img class="cockpit-img" src="images/cockpit.png">
+      <div id="leftbtn"><span class="img_Guard"></span><img src="images/leftbtn.png"/></div>
+      <div id="rightbtn"><span class="img_Guard"></span><img src="images/rightbtn.png"/></div>
+    </div>
+
+    <div id="overview">
+      <div id="ovPlane" class="centering"><img class="ov-plane-img" src="images/airplane.png"/></div>
+    </div>
+
+    <div id="view" style="width:100%; height:100%;">
+    </div>
+
+    <!-- 出発地設定 -->
+    <div class="modal fade" id="settingModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>出発地</h3>
+          </div>
+          <div class="modal-body">
+            <p>住所検索で出発地を設定しよう！</p>
+            <div id="search"></div>
+            <div id="settingview"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" id="settingClearBtn">クリア</button>
+            <button type="button" class="btn btn-primary" id="settingFinBtn">決定</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+  </body>
+
+  <!-- アラート -->
+    <div class="modal fade" id="alertModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>出発地が設定されていません！</h3>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" id="alertCloseBtn">閉じる</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+
+</html>
