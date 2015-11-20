@@ -8,7 +8,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Flight Simulator Controller</title>
 
-    <link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/esri/css/esri.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
     <style>
       html, body {
         height: 100%;
@@ -218,7 +218,7 @@
 
     <script src="//code.jquery.com/jquery-1.8.2.min.js"></script>
     <script src="plugins/Vague.js"></script>
-    <script src="https://jsdev.arcgis.com/4.0beta2/"> </script>
+    <script src="https://js.arcgis.com/4.0beta2/"></script>
     <script>
       var map;
       var view;
@@ -246,16 +246,16 @@
       var sendStreamLocationInterval = 1000;
       var tilt = 80;
       var turn = 0.085;
-      /*var initLocation = {
+      var initLocation = {
         x: -4.49,
         y: 48.3408,
         z: 500
-      };*/
-      var initLocation = {
+      };
+      /*var initLocation = {
         x: 139.75,
         y: 35.69,
         z: 3000
-      };
+      };*/
 
       require([
         "esri/Map",

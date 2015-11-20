@@ -7,7 +7,10 @@ Web Socket を利用した双方向通信によりマルチユーザー プレ�
 
 [![](images/readme/top.png)]()
 
-[http://esrijapan.github.io/flightsim-game-controller-js/](http://esrijapan.github.io/flightsim-game-controller-js/)
+## デモ
+
+* [2D](http://esrijapan.github.io/flightsim-game-controller-js/)
+* [3D](http://esrijapan.github.io/flightsim-game-controller-js/demo/)
 
 ## 使用している製品・プロジェクト
 

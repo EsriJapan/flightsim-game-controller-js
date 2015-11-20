@@ -9,7 +9,7 @@
     <title>3D フライト シミュレーター</title>
 
     <link rel="stylesheet" href="lib/bootstrap-3.2.0/css/bootstrap.min.css" >
-    <link rel="stylesheet" href="https://jsdev.arcgis.com/4.0beta2/esri/css/esri.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.0beta2/esri/css/main.css">
     <style>
       /* General */
       html, body {
@@ -128,7 +128,7 @@
     </script>
 
     <!--<script src="//code.jquery.com/jquery-1.8.2.min.js"></script>-->
-    <script src="https://jsdev.arcgis.com/4.0beta2/"> </script>
+    <script src="https://js.arcgis.com/4.0beta2/"> </script>
     <script>
       // 設定用変数
       var settingMap, settingView;
@@ -138,7 +138,8 @@
       var map, view, overviewMap, overview, minute;
       var flight_end = false;
       var a = 0;
-      var control_a = 90;
+      //var control_a = 90;
+      var control_a = 180;
       var scale = 10000000;
       var goFilghtInterval = 50;
       var goFlightDistance = 30;
@@ -148,7 +149,7 @@
       var initLocation = {
         x: 139.75,
         y: 35.69,
-        z: 3000
+        z: 4500
       };
 
       require([
