@@ -373,7 +373,7 @@
 
         function updateDatefield() {
           var date = new Date();
-          date.setTime(view.environment.lighting.date.getTime() + 2 * minute);
+          date.setTime(view.environment.lighting.date.getTime() + 5 * minute);
           view.environment.lighting.date = date;
           /*dateField.innerHTML = date.toLocaleString("fr-FR", {
             timeZone: "Europe/Paris"
